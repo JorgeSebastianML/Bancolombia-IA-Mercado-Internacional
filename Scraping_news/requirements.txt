@@ -1,0 +1,11 @@
+pandas==2.0.2
+numpy==1.24.3
+tqdm==4.65.0
+requests==2.31.0
+BeautifulSoup4==4.12.2
+dateparser==1.1.8
+torch==2.0.1
+transformers==4.28.0
+python-certifi-win32==1.6.1
+openai==0.27.8
+pysentimiento==0.7.1
