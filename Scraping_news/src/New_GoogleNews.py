@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup as Soup, ResultSet
 from dateutil.parser import parse
 import datetime
 from dateutil.relativedelta import relativedelta
-
+import logging
 ### METHODS
 
 def lexical_date_parser(date_to_check):
@@ -59,12 +59,13 @@ def define_date(date):
     except:
         return float('nan')
 
+
 ### CLASSEs
 
 class New_GoogleNews:
 
     def __init__(self,lang="en",period="",start="",end="",encode="utf-8",region=None, 
-                 header='Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:64.0) Gecko/20100101 Firefox/64.0'):
+                 header='Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:64.0) Gecko/20100101 Firefox/64.0', proxy=None):
         self.__texts = []
         self.__links = []
         self.__results = []
@@ -76,12 +77,13 @@ class New_GoogleNews:
             self.headers = {'User-Agent': self.user_agent, 'Accept-Language': self.accept_language}
         else:
             self.headers = {'User-Agent': self.user_agent}
+        self.proxy_host = proxy
         self.__period = period
         self.__start = start
         self.__end = end
         self.__encode = encode
         self.__exception = False
-        self.__version = '1.6.7'
+        self.__version = '1.6.12'
 
     def getVersion(self):
         return self.__version
@@ -124,13 +126,23 @@ class New_GoogleNews:
         Parameters:
         key = the search term
         """
-        self.__key = "+".join(key.split(" "))
+        self.__key = key
         if self.__encode != "":
             self.__key = urllib.request.quote(self.__key.encode(self.__encode))
         self.get_page()
 
     def build_response(self):
-        self.req = urllib.request.Request(self.url.replace("search?","search?hl="+self.__lang+"&gl="+self.__lang+"&"), headers=self.headers)
+        print("-----------------------nueva version--------------------")
+        print(self.url)
+        USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:65.0) Gecko/20100101 Firefox/65.0"
+  
+        headers = {"User-Agent" : USER_AGENT}
+        #self.response = requests.get(self.url, headers=headers)
+        #self.page = self.response.content
+        #self.content = Soup(self.page, "html.parser")
+        #stats = self.content.find_all("div", id="result-stats")
+        self.req = urllib.request.Request(self.url.replace("search?","search?hl="+self.__lang+"&gl="+self.__lang+"&"), headers=headers)
+        #self.req.set_proxy(self.proxy_host, 'http')
         self.response = urllib.request.urlopen(self.req)
         self.page = self.response.read()
         self.content = Soup(self.page, "html.parser")
@@ -140,8 +152,9 @@ class New_GoogleNews:
             self.__totalcount = int(stats.group().replace(',', ''))
         else:
             #TODO might want to add output for user to know no data was found
-            return
-        result = self.content.find_all("a",{"jsname" : re.compile(r".*")})[3:-1]
+            self.__totalcount = None
+            logging.debug('Total count is not available when sort by date')
+        result = self.content.find_all("a",attrs={'data-ved': True})
         return result
 
     def page_at(self, page=1):
@@ -164,29 +177,29 @@ class New_GoogleNews:
             result = self.build_response()
             for item in result:
                 try:
-                    tmp_text = item.find("div", {"role" : "heading"}).text.replace("\n","")
+                    tmp_text = item.find("h3").text.replace("\n","")
                 except Exception:
                     tmp_text = ''
                 try:
-                    tmp_link = item.get("href")
+                    tmp_link = item.get("href").replace('/url?esrc=s&q=&rct=j&sa=U&url=','')
                 except Exception:
                     tmp_link = ''
                 try:
-                    tmp_media = item.findAll("g-img")[0].parent.text
+                    tmp_media = item.find('div').find('div').find('div').find_next_sibling('div').text
                 except Exception:
                     tmp_media = ''
                 try:
-                    tmp_date = item.find("div", {"role" : "heading"}).next_sibling.findNext('div').text
+                    tmp_date = item.find('div').find_next_sibling('div').find('span').text
                     tmp_date,tmp_datetime=lexical_date_parser(tmp_date)
                 except Exception:
                     tmp_date = ''
                     tmp_datetime=None
                 try:
-                    tmp_desc = item.find("div", {"role" : "heading"}).next_sibling.text
+                    tmp_desc = item.find_next_sibling('div').find('div').find_next_sibling('div').find('div').find('div').find('div').contents[0].replace('\n','')
                 except Exception:
                     tmp_desc = ''
                 try:
-                    tmp_img = item.findAll("g-img")[0].find("img").get("src")
+                    tmp_img = item.find("img").get("src")
                 except Exception:
                     tmp_img = ''
                 self.__texts.append(tmp_text)
@@ -220,29 +233,29 @@ class New_GoogleNews:
             result = self.build_response()
             for item in result:
                 try:
-                    tmp_text = item.find("div", {"role" : "heading"}).text.replace("\n","")
+                    tmp_text = item.find("h3").text.replace("\n","")
                 except Exception:
                     tmp_text = ''
                 try:
-                    tmp_link = item.get("href")
+                    tmp_link = item.get("href").replace('/url?esrc=s&q=&rct=j&sa=U&url=','')
                 except Exception:
                     tmp_link = ''
                 try:
-                    tmp_media = item.findAll("g-img")[0].parent.text
+                    tmp_media = item.find('div').find('div').find('div').find_next_sibling('div').text
                 except Exception:
                     tmp_media = ''
                 try:
-                    tmp_date = item.find("div", {"role" : "heading"}).next_sibling.findNext('div').text
+                    tmp_date = item.find('div').find_next_sibling('div').find('span').text
                     tmp_date,tmp_datetime=lexical_date_parser(tmp_date)
                 except Exception:
                     tmp_date = ''
                     tmp_datetime=None
                 try:
-                    tmp_desc = item.find("div", {"role" : "heading"}).next_sibling.text.replace('\n','')
+                    tmp_desc = item.find_next_sibling('div').find('div').find_next_sibling('div').find('div').find('div').find('div').contents[0].replace('\n','')
                 except Exception:
                     tmp_desc = ''
                 try:
-                    tmp_img = item.findAll("g-img")[0].find("img").get("src")
+                    tmp_img = item.find("img").get("src")
                 except Exception:
                     tmp_img = ''
                 self.__texts.append(tmp_text)
@@ -263,8 +276,7 @@ class New_GoogleNews:
     def get_news(self, key="",deamplify=False):
         if key != '':
             if self.__period != "":
-                key += f"+when:{self.__period}"
-            key = "+".join(key.split(" "))
+                key += f" when:{self.__period}"
         else:
             if self.__period != "":
                 key += f"when:{self.__period}"
@@ -281,7 +293,7 @@ class New_GoogleNews:
                 try:
                     # title
                     try:
-                        title=article.find('h3').text
+                        title=article.findAll('div')[2].text
                     except:
                         title=None
                     # description
@@ -304,19 +316,23 @@ class New_GoogleNews:
                     # link
                     if deamplify:
                         try:
-                            link = 'news.google.com/' + article.find("h3").find("a").get("href")
+                            link = 'news.google.com/' + article.find('div').find("a").get("href")[2:]
                         except Exception as deamp_e:
                             print(deamp_e)
                             link = article.find("article").get("jslog").split('2:')[1].split(';')[0]
                     else:
-                            link = 'news.google.com/' + article.find("h3").find("a").get("href")
+                        try:
+                            link = 'news.google.com/' + article.find('div').find("a").get("href")[2:]
+                        except Exception as deamp_e:
+                            print(deamp_e)
+                            link = None
                     self.__texts.append(title)
                     self.__links.append(link)
                     if link.startswith('https://www.youtube.com/watch?v='):
                         desc = 'video'
                     # image
                     try:
-                        img = article.find("img").get("src")
+                        img = article.find("figure").find("img").get("src")
                     except:
                         img = None
                     # site
@@ -325,7 +341,7 @@ class New_GoogleNews:
                     except:
                         site=None
                     try:
-                        media=article.find("div").find("a").text
+                        media=article.find("div").findAll("div")[1].find("div").find("div").find("div").text
                     except:
                         media=None
                     # collection
